@@ -56,13 +56,37 @@ function findFirst(args) {
   return result.stdout.split("\n").find(Boolean) || "";
 }
 
-function tabTitle(tab) {
-  const number = tab?.number != null ? String(tab.number) : "";
+function tabTitle(tab, order) {
+  // `order` is the 1-based switch position within the workspace (prefix + N),
+  // not the tab's internal/system number.
+  const number = order != null ? String(order) : "";
   const label = cleanPart(tab?.label);
 
-  if (!label) return number || "tab";
-  if (label === number) return number;
-  return number ? `${number}.${label}` : label;
+  // Default tab labels mirror the internal number; drop those so we only show
+  // the switch order. Keep real, non-numeric labels for context.
+  if (!label || /^\d+$/.test(label)) return number || "tab";
+  return number ? `${number} / ${label}` : label;
+}
+
+function workspaceName(workspace) {
+  const number = workspace?.number != null ? String(workspace.number) : "";
+  const label = cleanPart(workspace?.label);
+  return label && label !== number ? label : "";
+}
+
+function fallbackTitle(tab, order) {
+  const tabPart = tabTitle(tab, order);
+  return tabPart === "tab" ? "tab" : `tab ${tabPart}`;
+}
+
+// Append " (workspace)" without letting the suffix get truncated away by the
+// title cap: the title body is trimmed to leave room for the suffix.
+function withWorkspace(title, name, max = 80) {
+  if (!name) return title.slice(0, max);
+  const suffix = ` (${name})`;
+  const room = max - suffix.length;
+  if (room <= 0) return title.slice(0, max);
+  return `${title.slice(0, room).trimEnd()}${suffix}`;
 }
 
 function agentTitle(pane) {
@@ -163,12 +187,22 @@ function buildTitle() {
   const pane = json(["pane", "current"])?.result?.pane;
   if (!pane) return "herdr";
 
-  const tab = json(["tab", "get", pane.tab_id])?.result?.tab;
+  const workspace = pane.workspace_id
+    ? json(["workspace", "get", pane.workspace_id])?.result?.workspace
+    : null;
+  const name = workspaceName(workspace);
 
-  const fallbackTitle = tabTitle(tab);
   const title = appTitle(pane);
+  if (title) return withWorkspace(title, name);
 
-  return (title || fallbackTitle).slice(0, 80);
+  const tabs = pane.workspace_id
+    ? json(["tab", "list", "--workspace", pane.workspace_id])?.result?.tabs ?? []
+    : [];
+  const index = tabs.findIndex((tab) => tab.tab_id === pane.tab_id);
+  const tab = index >= 0 ? tabs[index] : null;
+  const order = index >= 0 ? index + 1 : null;
+
+  return withWorkspace(fallbackTitle(tab, order), name);
 }
 
 function lastTitle() {

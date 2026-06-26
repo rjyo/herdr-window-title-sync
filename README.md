@@ -26,14 +26,15 @@ The plugin chooses the first available title:
 2. Herdr display agent and custom status.
 3. Latest user prompt from local Codex or Claude Code session files.
 4. Herdr's detected agent name.
-5. The focused tab as a fallback.
+5. The focused tab as a fallback, numbered by its switch order (prefix + N).
 
-Examples:
+The focused workspace name is appended in parentheses. Examples:
 
 ```text
-codex: Implement title sync
-claude
-codex
+codex: Implement title sync (app-ios)
+claude (app-ios)
+tab 2 (app-ios)
+tab 5 / sim (app-ios)
 ```
 
 ## Manual Refresh
